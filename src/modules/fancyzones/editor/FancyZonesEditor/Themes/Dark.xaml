@@ -15,7 +15,7 @@
     <SolidColorBrush x:Key="TertiaryBackgroundBrush" Color="#FF202020" />
     <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="#FFFFFFFF" />
     <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FF9a9a9a" />
-    <SolidColorBrush x:Key="BackdropBrush" Color="#E55B5B5B" />
+    <SolidColorBrush x:Key="BackdropBrush" Color="#40F0F0F0" />
     <SolidColorBrush x:Key="TitleBarSecondaryForegroundBrush" Color="#FF9a9a9a" />
     <SolidColorBrush x:Key="LayoutItemBackgroundBrush" Color="#FF3A3A3A" />
     <SolidColorBrush x:Key="LayoutItemBackgroundPointerOverBrush" Color="#FF333333" />
@@ -24,6 +24,6 @@
 
     <SolidColorBrush x:Key="LayoutPreviewActualScaleZoneBackgroundBrush" Color="#E5202020" />
     <SolidColorBrush x:Key="LayoutPreviewSmallScaleZoneBackgroundBrush" Color="#FF202020" />
-    <SolidColorBrush x:Key="CanvasZoneBackgroundBrush" Color="#E5202020" />
-    <SolidColorBrush x:Key="GridZoneBackgroundBrush" Color="#E5202020" />
+    <SolidColorBrush x:Key="CanvasZoneBackgroundBrush" Color="#E0202020" />
+    <SolidColorBrush x:Key="GridZoneBackgroundBrush" Color="#E0202020" />
 </ResourceDictionary>
