@@ -15,6 +15,7 @@ using ColorPicker.Mouse;
 using ColorPicker.Settings;
 using ColorPicker.Telemetry;
 using ColorPicker.ViewModelContracts;
+using interop;
 using Microsoft.PowerToys.Settings.UI.Library.Enumerations;
 using Microsoft.PowerToys.Telemetry;
 
@@ -26,7 +27,6 @@ namespace ColorPicker.ViewModels
         private readonly ZoomWindowHelper _zoomWindowHelper;
         private readonly AppStateHandler _appStateHandler;
         private readonly IUserSettings _userSettings;
-        private readonly NativeEventWaiter _nativeEventWaiter;
 
         /// <summary>
         /// Backing field for <see cref="OtherColor"/>
@@ -49,13 +49,13 @@ namespace ColorPicker.ViewModels
             ZoomWindowHelper zoomWindowHelper,
             AppStateHandler appStateHandler,
             KeyboardMonitor keyboardMonitor,
-            NativeEventWaiter nativeEventWaiter,
             IUserSettings userSettings)
         {
             _zoomWindowHelper = zoomWindowHelper;
             _appStateHandler = appStateHandler;
             _userSettings = userSettings;
-            _nativeEventWaiter = nativeEventWaiter;
+            NativeEventWaiter.WaitForEventLoop(Constants.ShowColorPickerSharedEvent(), _appStateHandler.StartUserSession);
+            NativeEventWaiter.WaitForEventLoop(Constants.ColorPickerSendSettingsTelemetryEvent(), _userSettings.SendSettingsTelemetry);
 
             if (mouseInfoProvider != null)
             {
@@ -133,21 +133,24 @@ namespace ColorPicker.ViewModels
         {
             ClipboardHelper.CopyToClipboard(ColorText);
 
-            _userSettings.ColorHistory.Insert(0, GetColorString());
+            var color = GetColorString();
+
+            var oldIndex = _userSettings.ColorHistory.IndexOf(color);
+            if (oldIndex != -1)
+            {
+                _userSettings.ColorHistory.Move(oldIndex, 0);
+            }
+            else
+            {
+                _userSettings.ColorHistory.Insert(0, color);
+            }
 
             if (_userSettings.ColorHistory.Count > _userSettings.ColorHistoryLimit.Value)
             {
                 _userSettings.ColorHistory.RemoveAt(_userSettings.ColorHistory.Count - 1);
             }
 
-            _appStateHandler.HideColorPicker();
-
-            if (_userSettings.ActivationAction.Value == ColorPickerActivationAction.OpenColorPickerAndThenEditor || _userSettings.ActivationAction.Value == ColorPickerActivationAction.OpenEditor)
-            {
-                _appStateHandler.ShowColorPickerEditor();
-            }
-
-            PowerToysTelemetry.Log.WriteEvent(new ColorPickerShowEvent());
+            _appStateHandler.OnColorPickerMouseDown();
         }
 
         private string GetColorString()

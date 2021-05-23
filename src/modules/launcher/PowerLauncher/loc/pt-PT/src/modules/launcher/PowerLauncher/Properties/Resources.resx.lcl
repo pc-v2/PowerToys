@@ -55,6 +55,24 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
+      <Item ItemId=";FailedToInitializePluginsDescription" ItemType="0;.resx" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Plugins: {0} - fail to load and would be disabled, please contact plugins creator for help]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Plug-ins: {0} - falha ao carregar e seriam desativados. Contacte o criador dos plug-ins para obter ajuda]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";FailedToInitializePluginsTitle" ItemType="0;.resx" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Fail to initialize plugins]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Falha ao inicializar os plug-ins]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
       <Item ItemId=";Query" ItemType="0;.resx" PsrId="211" Leaf="true">
         <Str Cat="Text">
           <Val><![CDATA[Query]]></Val>
@@ -100,15 +118,6 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";about_activate_times" ItemType="0;.resx" PsrId="211" Leaf="true">
-        <Str Cat="Text">
-          <Val><![CDATA[You have activated Wox {0} times]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[Ativou o Wox {0} vezes]]></Val>
-          </Tgt>
-        </Str>
-        <Disp Icon="Str" />
-      </Item>
       <Item ItemId=";deseralization_error_message" ItemType="0;.resx" PsrId="211" Leaf="true">
         <Str Cat="Text">
           <Val><![CDATA[Settings will be reset to default and program will continue to function.]]></Val>
@@ -122,7 +131,7 @@
         <Str Cat="Text">
           <Val><![CDATA[PowerToys Run deserialization error]]></Val>
           <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[Erro de desserialização da Execução do PowerToys]]></Val>
+            <Val><![CDATA[Erro de desserialização do PowerToys Run]]></Val>
           </Tgt>
           <Prev Cat="Text">
             <Val><![CDATA[Powertoys Run deserialization error]]></Val>
@@ -206,7 +215,7 @@
         <Str Cat="Text">
           <Val><![CDATA[PowerToys Run ran into an issue]]></Val>
           <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[A Execução do PowerToys encontrou um problema]]></Val>
+            <Val><![CDATA[O PowerToys Run encontrou um problema]]></Val>
           </Tgt>
         </Str>
         <Disp Icon="Str" />

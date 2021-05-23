@@ -9,7 +9,8 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 {
     public class FZConfigProperties
     {
-        public static readonly HotkeySettings DefaultHotkeyValue = new HotkeySettings(true, false, false, false, 0xc0);
+        // in reality, this file needs to be kept in sync currently with src\modules\fancyzones\lib\Settings.h
+        public static readonly HotkeySettings DefaultHotkeyValue = new HotkeySettings(true, false, false, true, 0xc0);
 
         public FZConfigProperties()
         {
@@ -24,6 +25,8 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             FancyzonesAppLastZoneMoveWindows = new BoolProperty();
             FancyzonesOpenWindowOnActiveMonitor = new BoolProperty();
             FancyzonesRestoreSize = new BoolProperty();
+            FancyzonesQuickLayoutSwitch = new BoolProperty(ConfigDefaults.DefaultFancyzonesQuickLayoutSwitch);
+            FancyzonesFlashZonesOnQuickSwitch = new BoolProperty(ConfigDefaults.DefaultFancyzonesFlashZonesOnQuickSwitch);
             UseCursorposEditorStartupscreen = new BoolProperty(ConfigDefaults.DefaultUseCursorposEditorStartupscreen);
             FancyzonesShowOnAllMonitors = new BoolProperty();
             FancyzonesSpanZonesAcrossMonitors = new BoolProperty();
@@ -68,6 +71,12 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         [JsonPropertyName("fancyzones_restoreSize")]
         public BoolProperty FancyzonesRestoreSize { get; set; }
+
+        [JsonPropertyName("fancyzones_quickLayoutSwitch")]
+        public BoolProperty FancyzonesQuickLayoutSwitch { get; set; }
+
+        [JsonPropertyName("fancyzones_flashZonesOnQuickSwitch")]
+        public BoolProperty FancyzonesFlashZonesOnQuickSwitch { get; set; }
 
         [JsonPropertyName("use_cursorpos_editor_startupscreen")]
         public BoolProperty UseCursorposEditorStartupscreen { get; set; }

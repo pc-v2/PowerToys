@@ -11,6 +11,8 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
 {
     public class ShortcutGuideViewModel : Observable
     {
+        private ISettingsUtils SettingsUtils { get; set; }
+
         private GeneralSettings GeneralSettingsConfig { get; set; }
 
         private ShortcutGuideSettings Settings { get; set; }
@@ -20,9 +22,12 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
         private Func<string, int> SendConfigMSG { get; }
 
         private string _settingsConfigFileFolder = string.Empty;
+        private string _disabledApps;
 
-        public ShortcutGuideViewModel(ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<ShortcutGuideSettings> moduleSettingsRepository, Func<string, int> ipcMSGCallBackFunc, string configFileSubfolder = "")
+        public ShortcutGuideViewModel(ISettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<ShortcutGuideSettings> moduleSettingsRepository, Func<string, int> ipcMSGCallBackFunc, string configFileSubfolder = "")
         {
+            SettingsUtils = settingsUtils;
+
             // Update Settings file folder:
             _settingsConfigFileFolder = configFileSubfolder;
 
@@ -49,6 +54,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
             _isEnabled = GeneralSettingsConfig.Enabled.ShortcutGuide;
             _pressTime = Settings.Properties.PressTime.Value;
             _opacity = Settings.Properties.OverlayOpacity.Value;
+            _disabledApps = Settings.Properties.DisabledApps.Value;
 
             string theme = Settings.Properties.Theme.Value;
 
@@ -96,6 +102,23 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
             }
         }
 
+        public HotkeySettings OpenShortcutGuide
+        {
+            get
+            {
+                return Settings.Properties.OpenShortcutGuide;
+            }
+
+            set
+            {
+                if (Settings.Properties.OpenShortcutGuide != value)
+                {
+                    Settings.Properties.OpenShortcutGuide = value;
+                    NotifyPropertyChanged();
+                }
+            }
+        }
+
         public int ThemeIndex
         {
             get
@@ -134,24 +157,6 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
             }
         }
 
-        public int PressTime
-        {
-            get
-            {
-                return _pressTime;
-            }
-
-            set
-            {
-                if (_pressTime != value)
-                {
-                    _pressTime = value;
-                    Settings.Properties.PressTime.Value = value;
-                    NotifyPropertyChanged();
-                }
-            }
-        }
-
         public int OverlayOpacity
         {
             get
@@ -170,6 +175,24 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
             }
         }
 
+        public string DisabledApps
+        {
+            get
+            {
+                return _disabledApps;
+            }
+
+            set
+            {
+                if (value != _disabledApps)
+                {
+                    _disabledApps = value;
+                    Settings.Properties.DisabledApps.Value = value;
+                    NotifyPropertyChanged();
+                }
+            }
+        }
+
         public string GetSettingsSubPath()
         {
             return _settingsConfigFileFolder + "\\" + ModuleName;
@@ -178,9 +201,11 @@ namespace Microsoft.PowerToys.Settings.UI.Library.ViewModels
         public void NotifyPropertyChanged([CallerMemberName] string propertyName = null)
         {
             OnPropertyChanged(propertyName);
+
             SndShortcutGuideSettings outsettings = new SndShortcutGuideSettings(Settings);
             SndModuleSettings<SndShortcutGuideSettings> ipcMessage = new SndModuleSettings<SndShortcutGuideSettings>(outsettings);
             SendConfigMSG(ipcMessage.ToJsonString());
+            SettingsUtils.SaveSettings(Settings.ToJsonString(), ModuleName);
         }
     }
 }

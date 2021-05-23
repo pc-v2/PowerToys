@@ -9,6 +9,7 @@
 #include "restart_elevated.h"
 #include "RestartManagement.h"
 #include "Generated files/resource.h"
+#include "settings_telemetry.h"
 
 #include <common/comUtils/comUtils.h>
 #include <common/display/dpi_aware.h>
@@ -16,13 +17,13 @@
 #include <common/notifications/dont_show_again.h>
 #include <common/updating/installer.h>
 #include <common/updating/updating.h>
+#include <common/updating/updateState.h>
 #include <common/utils/appMutex.h>
 #include <common/utils/elevation.h>
 #include <common/utils/processApi.h>
 #include <common/utils/resources.h>
 #include <common/winstore/winstore.h>
 
-#include "update_state.h"
 #include "update_utils.h"
 #include "action_runner_utils.h"
 
@@ -31,16 +32,18 @@
 #include <Psapi.h>
 #include <RestartManager.h>
 #include "centralized_kb_hook.h"
+#include "CentralizedHotkeys.h"
 
 #if _DEBUG && _WIN64
 #include "unhandled_exception_handler.h"
 #endif
-#include <common/SettingsAPI/settings_helpers.h>
 #include <common/logger/logger.h>
-#include <common/utils/winapi_error.h>
-#include <common/version/version.h>
-#include <common/utils/window.h>
+#include <common/SettingsAPI/settings_helpers.h>
 #include <runner/settings_window.h>
+#include <common/utils/process_path.h>
+#include <common/utils/winapi_error.h>
+#include <common/utils/window.h>
+#include <common/version/version.h>
 
 extern updating::notifications::strings Strings;
 
@@ -78,6 +81,30 @@ void open_menu_from_another_instance()
     PostMessageW(hwnd_main, WM_COMMAND, ID_SETTINGS_MENU_COMMAND, 0);
 }
 
+void debug_verify_launcher_assets()
+{
+    try
+    {
+        namespace fs = std::filesystem;
+        const fs::path powertoysRoot = get_module_folderpath();
+        constexpr std::array<std::string_view, 4> assetsToCheck = { "modules\\launcher\\Images\\app.dark.png",
+                                                                    "modules\\launcher\\Images\\app.light.png",
+                                                                    "modules\\launcher\\Images\\app_error.dark.png",
+                                                                    "modules\\launcher\\Images\\app_error.light.png" };
+        for (const auto asset : assetsToCheck)
+        {
+            const auto assetPath = powertoysRoot / asset;
+            if (!fs::is_regular_file(assetPath))
+            {
+                Logger::error("{} couldn't be found.", assetPath.string());
+            }
+        }
+    }
+    catch (...)
+    {
+    }
+}
+
 int runner(bool isProcessElevated, bool openSettings, bool openOobe)
 {
     Logger::info("Runner is starting. Elevated={}", isProcessElevated);
@@ -95,8 +122,10 @@ int runner(bool isProcessElevated, bool openSettings, bool openOobe)
     int result = -1;
     try
     {
+        debug_verify_launcher_assets();
+
         std::thread{ [] {
-            github_update_worker();
+            periodic_update_worker();
         } }.detach();
 
         if (winstore::running_as_packaged())
@@ -127,7 +156,7 @@ int runner(bool isProcessElevated, bool openSettings, bool openOobe)
             L"modules/KeyboardManager/KeyboardManager.dll",
             L"modules/Launcher/Microsoft.Launcher.dll",
             L"modules/PowerRename/PowerRenameExt.dll",
-            L"modules/ShortcutGuide/ShortcutGuide.dll",
+            L"modules/ShortcutGuide/ShortcutGuideModuleInterface/ShortcutGuideModuleInterface.dll",
             L"modules/ColorPicker/ColorPicker.dll",
         };
 
@@ -160,9 +189,10 @@ int runner(bool isProcessElevated, bool openSettings, bool openOobe)
 
         if (openOobe)
         {
-            open_oobe_window(); 
+            open_oobe_window();
         }
 
+        settings_telemetry::init();
         result = run_message_loop();
     }
     catch (std::runtime_error& err)
@@ -197,7 +227,7 @@ SpecialMode should_run_in_special_mode(const int n_cmd_args, LPWSTR* cmd_arg_lis
         {
             return SpecialMode::ToastNotificationHandler;
         }
-        else if (n_cmd_args == 2 && !wcscmp(UPDATE_REPORT_SUCCESS, cmd_arg_list[i]))
+        else if (n_cmd_args == 2 && !wcscmp(cmdArg::UPDATE_REPORT_SUCCESS, cmd_arg_list[i]))
         {
             return SpecialMode::ReportSuccessfulUpdate;
         }
@@ -222,9 +252,7 @@ toast_notification_handler_result toast_notification_handler(const std::wstring_
 {
     const std::wstring_view cant_drag_elevated_disable = L"cant_drag_elevated_disable/";
     const std::wstring_view couldnt_toggle_powerpreview_modules_disable = L"couldnt_toggle_powerpreview_modules_disable/";
-    const std::wstring_view download_and_install_update = L"download_and_install_update/";
     const std::wstring_view open_settings = L"open_settings/";
-    const std::wstring_view schedule_update = L"schedule_update/";
     const std::wstring_view update_now = L"update_now/";
 
     if (param == cant_drag_elevated_disable)
@@ -233,45 +261,9 @@ toast_notification_handler_result toast_notification_handler(const std::wstring_
     }
     else if (param.starts_with(update_now))
     {
-        std::wstring args{ UPDATE_NOW_LAUNCH_STAGE1_CMDARG };
-        const auto installerFilename = param.data() + size(update_now);
-        args += L' ';
-        args += installerFilename;
+        std::wstring args{ cmdArg::UPDATE_NOW_LAUNCH_STAGE1 };
         launch_action_runner(args.c_str());
         return toast_notification_handler_result::exit_success;
-    }
-    else if (param.starts_with(schedule_update))
-    {
-        const auto installerFilename = param.data() + size(schedule_update);
-        UpdateState::store([=](UpdateState& state) {
-            state.pending_update = true;
-            state.pending_installer_filename = installerFilename;
-        });
-
-        return toast_notification_handler_result::exit_success;
-    }
-    else if (param.starts_with(download_and_install_update))
-    {
-        try
-        {
-            std::wstring installer_filename = updating::download_update(Strings).get();
-
-            std::wstring args{ UPDATE_NOW_LAUNCH_STAGE1_CMDARG };
-            args += L' ';
-            args += installer_filename;
-            launch_action_runner(args.c_str());
-
-            return toast_notification_handler_result::exit_success;
-        }
-        catch (...)
-        {
-            MessageBoxW(nullptr,
-                        GET_RESOURCE_STRING(IDS_DOWNLOAD_UPDATE_ERROR).c_str(),
-                        L"PowerToys",
-                        MB_ICONWARNING | MB_OK);
-
-            return toast_notification_handler_result::exit_error;
-        }
     }
     else if (param == couldnt_toggle_powerpreview_modules_disable)
     {
@@ -303,11 +295,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         L"S:"
         L"(ML;;NX;;;LW)"; // Integrity label on No execute up for Low mandatory level
     initializeCOMSecurity(securityDescriptor);
-
-    if (launch_pending_update())
-    {
-        return 0;
-    }
 
     int n_cmd_args = 0;
     LPWSTR* cmd_arg_list = CommandLineToArgvW(GetCommandLineW(), &n_cmd_args);
@@ -431,7 +418,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto general_settings = load_general_settings();
         const bool openSettings = std::string(lpCmdLine).find("--open-settings") != std::string::npos;
 
-
         // Apply the general settings but don't save it as the modules() variable has not been loaded yet
         apply_general_settings(general_settings, false);
         int rvalue = 0;
@@ -440,7 +426,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
              general_settings.GetNamedBoolean(L"run_elevated", false) == false ||
              std::string(lpCmdLine).find("--dont-elevate") != std::string::npos))
         {
-
             result = runner(elevated, openSettings, openOobe);
         }
         else

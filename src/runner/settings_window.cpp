@@ -8,9 +8,7 @@
 #include <common/interop/two_way_pipe_message_ipc.h>
 #include "tray_icon.h"
 #include "general_settings.h"
-#include <common/themes/windows_colors.h>
 #include "restart_elevated.h"
-#include "update_state.h"
 #include "update_utils.h"
 #include "centralized_kb_hook.h"
 
@@ -20,10 +18,11 @@
 #include <common/version/helper.h>
 #include <common/logger/logger.h>
 #include <common/utils/elevation.h>
-#include <common/utils/os-detect.h>
 #include <common/utils/process_path.h>
 #include <common/utils/timeutil.h>
 #include <common/utils/winapi_error.h>
+#include <common/updating/updateState.h>
+#include <common/themes/windows_colors.h>
 
 #define BUFSIZE 1024
 
@@ -41,7 +40,7 @@ json::JsonObject get_power_toys_settings()
         }
         catch (...)
         {
-            Logger::error("get_power_toys_settings: got malformed json");
+            Logger::error(L"get_power_toys_settings(): got malformed json for {} module", name);
         }
     }
     return result;
@@ -85,34 +84,16 @@ std::optional<std::wstring> dispatch_json_action_to_module(const json::JsonObjec
                 }
                 else if (action == L"check_for_updates")
                 {
-                    if (auto update_check_result = check_for_updates())
-                    {
-                        VersionHelper latestVersion{ VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION };
-                        bool isVersionLatest = true;
-                        if (auto new_version = std::get_if<updating::new_version_download_info>(&*update_check_result))
-                        {
-                            latestVersion = new_version->version;
-                            isVersionLatest = false;
-                        }
-                        json::JsonObject json;
-                        json.SetNamedValue(L"version", json::value(latestVersion.toWstring()));
-                        json.SetNamedValue(L"isVersionLatest", json::value(isVersionLatest));
-
-                        result.emplace(json.Stringify());
-
-                        UpdateState::store([](UpdateState& state) {
-                            state.github_update_last_checked_date.emplace(timeutil::now());
-                        });
-                    }
+                    check_for_updates_settings_callback();
                 }
                 else if (action == L"request_update_state_date")
                 {
                     json::JsonObject json;
 
                     auto update_state = UpdateState::read();
-                    if (update_state.github_update_last_checked_date)
+                    if (update_state.githubUpdateLastCheckedDate)
                     {
-                        const time_t date = *update_state.github_update_last_checked_date;
+                        const time_t date = *update_state.githubUpdateLastCheckedDate;
                         json.SetNamedValue(L"updateStateDate", json::value(std::to_wstring(date)));
                     }
 
@@ -140,6 +121,7 @@ void send_json_config_to_module(const std::wstring& module_key, const std::wstri
     {
         moduleIt->second->set_config(settings.c_str());
         moduleIt->second.update_hotkeys();
+        moduleIt->second.UpdateHotkeyEx();
     }
 }
 
@@ -294,14 +276,7 @@ void run_settings_window(bool showOobeWindow)
     // Arg 1: executable path.
     std::wstring executable_path = get_module_folderpath();
 
-    if (UseNewSettings())
-    {
-        executable_path.append(L"\\Settings\\PowerToys.Settings.exe");
-    }
-    else
-    {
-        executable_path.append(L"\\PowerToysSettings.exe");
-    }
+    executable_path.append(L"\\Settings\\PowerToys.Settings.exe");
 
     // Args 2,3: pipe server. Generate unique names for the pipes, if getting a UUID is possible.
     std::wstring powertoys_pipe_name(L"\\\\.\\pipe\\powertoys_runner_");
@@ -343,7 +318,7 @@ void run_settings_window(bool showOobeWindow)
     // Arg 6: elevated status
     bool isElevated{ get_general_settings().isElevated };
     std::wstring settings_elevatedStatus = isElevated ? L"true" : L"false";
-    
+
     // Arg 7: is user an admin
     bool isAdmin{ get_general_settings().isAdmin };
     std::wstring settings_isUserAnAdmin = isAdmin ? L"true" : L"false";
@@ -371,15 +346,15 @@ void run_settings_window(bool showOobeWindow)
     executable_args.append(settings_isUserAnAdmin);
     executable_args.append(L" ");
     executable_args.append(settings_showOobe);
-    
+
     BOOL process_created = false;
 
-    // Due to a bug in .NET, running the Settings process as non-elevated
-    // from an elevated process sometimes results in a crash.
-    // TODO: Revisit this after switching to .NET 5
-    if (is_process_elevated() && !UseNewSettings())
+    if (is_process_elevated())
     {
-        process_created = run_settings_non_elevated(executable_path.c_str(), executable_args.data(), &process_info);
+        // TODO: Revisit this after switching to .NET 5
+        // Due to a bug in .NET, running the Settings process as non-elevated
+        // from an elevated process sometimes results in a crash.
+        // process_created = run_settings_non_elevated(executable_path.c_str(), executable_args.data(), &process_info);
     }
 
     if (FALSE == process_created)

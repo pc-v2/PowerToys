@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "powertoy_module.h"
 #include "centralized_kb_hook.h"
+#include "CentralizedHotkeys.h"
+#include <common/logger/logger.h>
+#include <common/utils/winapi_error.h>
 
 std::map<std::wstring, PowertoyModule>& modules()
 {
@@ -45,6 +48,7 @@ PowertoyModule::PowertoyModule(PowertoyModuleIface* pt_module, HMODULE handle) :
     }
 
     update_hotkeys();
+    UpdateHotkeyEx();
 }
 
 void PowertoyModule::update_hotkeys()
@@ -60,7 +64,24 @@ void PowertoyModule::update_hotkeys()
     for (size_t i = 0; i < hotkeyCount; i++)
     {
         CentralizedKeyboardHook::SetHotkeyAction(pt_module->get_key(), hotkeys[i], [modulePtr, i] {
+            Logger::trace(L"{} hotkey is invoked from Centralized keyboard hook", modulePtr->get_key());
             return modulePtr->on_hotkey(i);
         });
+    }
+}
+
+void PowertoyModule::UpdateHotkeyEx()
+{
+    CentralizedHotkeys::UnregisterHotkeysForModule(pt_module->get_key());
+    auto container = pt_module->GetHotkeyEx();
+    if (container.has_value())
+    {
+        auto hotkey = container.value();
+        auto modulePtr = pt_module.get();
+        auto action = [modulePtr](WORD modifiersMask, WORD vkCode) {
+            modulePtr->OnHotkeyEx();
+        };
+
+        CentralizedHotkeys::AddHotkeyAction({ hotkey.modifiersMask, hotkey.vkCode }, { pt_module->get_key(), action });
     }
 }

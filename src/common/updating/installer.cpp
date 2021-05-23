@@ -3,6 +3,7 @@
 #include "installer.h"
 #include <common/version/version.h>
 #include <common/notifications/notifications.h>
+#include <common/utils/os-detect.h>
 #include "utils/winapi_error.h"
 
 namespace // Strings in this namespace should not be localized
@@ -80,7 +81,7 @@ namespace updating
             }
             catch (...)
             {
-                updating::notifications::show_uninstallation_error(strings);
+                MessageBoxW(nullptr, strings.UNINSTALLATION_UNKNOWN_ERROR.c_str(), strings.NOTIFICATION_TITLE.c_str(), MB_OK | MB_ICONERROR);
             }
         }
         return false;
@@ -192,4 +193,8 @@ namespace updating
         co_return false;
     }
 
+    bool is_1809_or_older()
+    {
+        return !Is19H1OrHigher();
+    }
 }

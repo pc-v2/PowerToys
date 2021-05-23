@@ -12,6 +12,7 @@ namespace ZonedWindowProperties
     const wchar_t MultiMonitorDeviceID[]    = L"FancyZones#MultiMonitorDevice";
 }
 
+// in reality, this file needs to be kept in sync currently with src/settings-ui/Microsoft.PowerToys.Settings.UI.Library/FZConfigProperties.cs
 struct Settings
 {
     enum struct OverlappingZonesAlgorithm : int
@@ -34,6 +35,8 @@ struct Settings
     bool appLastZone_moveWindows = false;
     bool openWindowOnActiveMonitor = false;
     bool restoreSize = false;
+    bool quickLayoutSwitch = true;
+    bool flashZonesOnQuickSwitch = true;
     bool use_cursorpos_editor_startupscreen = true;
     bool showZonesOnAllMonitors = false;
     bool spanZonesAcrossMonitors = false;
@@ -43,7 +46,7 @@ struct Settings
     std::wstring zoneHighlightColor = L"#008CFF";
     int zoneHighlightOpacity = 50;
     OverlappingZonesAlgorithm overlappingZonesAlgorithm = OverlappingZonesAlgorithm::Smallest;
-    PowerToysSettings::HotkeyObject editorHotkey = PowerToysSettings::HotkeyObject::from_settings(true, false, false, false, VK_OEM_3);
+    PowerToysSettings::HotkeyObject editorHotkey = PowerToysSettings::HotkeyObject::from_settings(true, false, false, true, VK_OEM_3);
     std::wstring excludedApps = L"";
     std::vector<std::wstring> excludedAppsArray;
 };

@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Windows.Controls;
 using Community.PowerToys.Run.Plugin.VSCodeWorkspaces.Properties;
 using Community.PowerToys.Run.Plugin.VSCodeWorkspaces.RemoteMachinesHelper;
 using Community.PowerToys.Run.Plugin.VSCodeWorkspaces.VSCodeHelper;
 using Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper;
-using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
 
 namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces
@@ -51,11 +49,14 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces
                         title += $" - {(a.ExtraInfo != null ? $"{a.ExtraInfo} ({typeWorkspace})" : typeWorkspace)}";
                     }
 
+                    var tooltip = new ToolTipData(title, $"{Resources.Workspace}{(a.TypeWorkspace != TypeWorkspace.Local ? $" {Resources.In} {typeWorkspace}" : "")}: {SystemPath.RealPath(a.RelativePath)}");
+
                     results.Add(new Result
                     {
                         Title = title,
                         SubTitle = $"{Resources.Workspace}{(a.TypeWorkspace != TypeWorkspace.Local ? $" {Resources.In} {typeWorkspace}" : "")}: {SystemPath.RealPath(a.RelativePath)}",
                         Icon = a.VSCodeInstance.WorkspaceIcon,
+                        ToolTipData = tooltip,
                         Action = c =>
                         {
                             bool hide;
@@ -85,21 +86,25 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces
                     });
                 });
 
+
                 // Search opened remote machines
                 _machinesApi.Machines.ForEach(a =>
                 {
                     var title = $"{a.Host}";
 
-                    if (a.User != null && a.User != String.Empty && a.HostName != null && a.HostName != String.Empty)
+                    if (a.User != null && a.User != string.Empty && a.HostName != null && a.HostName != string.Empty)
                     {
                         title += $" [{a.User}@{a.HostName}]";
                     }
+
+                    var tooltip = new ToolTipData(title, Resources.SSHRemoteMachine);
 
                     results.Add(new Result
                     {
                         Title = title,
                         SubTitle = Resources.SSHRemoteMachine,
                         Icon = a.VSCodeInstance.RemoteIcon,
+                        ToolTipData = tooltip,
                         Action = c =>
                         {
                             bool hide;
@@ -130,6 +135,11 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces
                 });
             }
 
+            if (query.ActionKeyword == string.Empty || (query.ActionKeyword != string.Empty && query.Search != string.Empty))
+            {
+                results = results.Where(a => a.Title.ToLowerInvariant().Contains(query.Search.ToLowerInvariant())).ToList();
+            }
+
             results.ForEach(x =>
             {
                 if (x.Score == 0)
@@ -137,22 +147,22 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces
                     x.Score = 100;
                 }
 
+                //intersect the title with the query
+                var intersection = Convert.ToInt32(x.Title.ToLowerInvariant().Intersect(query.Search.ToLowerInvariant()).Count() * query.Search.Count());
+                var differenceWithQuery = Convert.ToInt32((x.Title.Count() - intersection) * query.Search.Count() * 0.7);
+                x.Score = x.Score - differenceWithQuery + intersection;
+
                 //if is a remote machine give it 12 extra points
                 if (x.ContextData is VSCodeRemoteMachine)
                 {
-                    x.Score = x.Score + (query.Search.Count() * 5);
+                    x.Score = Convert.ToInt32(x.Score + intersection * 2);
                 }
-
-                //intersect the title with the query
-                var intersection = x.Title.ToLower().Intersect(query.Search.ToLower()).Count();
-                x.Score = x.Score - (Convert.ToInt32(((x.Title.Count() - intersection) *2.5)));
             });
 
-            results = results.OrderBy(x => x.Title).ToList();
-
-            if (query.ActionKeyword == String.Empty || (query.ActionKeyword != String.Empty && query.Search != String.Empty))
+            results = results.OrderByDescending(x => x.Score).ToList();
+            if (query.Search == string.Empty || query.Search.Replace(" ", "") == string.Empty)
             {
-                results = results.Where(a => a.Title.ToLower().Contains(query.Search.ToLower())).ToList();
+                results = results.OrderBy(x => x.Title).ToList();
             }
 
             return results;
