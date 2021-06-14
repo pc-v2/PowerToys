@@ -5,6 +5,9 @@
 #include <shellapi.h>
 #include <sddl.h>
 
+#include <winrt/base.h>
+#include <winrt/Windows.Foundation.Collections.h>
+
 #include <string>
 #include <common/logger/logger.h>
 #include <common/utils/winapi_error.h>
@@ -93,7 +96,15 @@ inline bool run_non_elevated(const std::wstring& file, const std::wstring& param
     HWND hwnd = GetShellWindow();
     if (!hwnd)
     {
-        Logger::error(L"GetShellWindow() failed. {}", get_last_error_or_default(GetLastError()));
+        if (GetLastError() == ERROR_SUCCESS)
+        {
+            Logger::warn(L"GetShellWindow() returned null. Shell window is not available");
+        }
+        else
+        {
+            Logger::error(L"GetShellWindow() failed. {}", get_last_error_or_default(GetLastError()));
+        }
+        
         return false;
     }
     DWORD pid;
